@@ -27,9 +27,15 @@ class Crawler(object):
             self.enqueue(seed)
 
     def visit(self, url, raw, parsed):
+        """
+        Do something when we visit a page.
+        """
         raise NotImplementedError("You must override the visit method!")
 
     def crawl(self):
+        """
+        Launch a crawl.
+        """
         start_time = time()
         pages = 0
         last_time = 0.0
@@ -156,5 +162,8 @@ class Crawler(object):
         self.seen.add(canonical)
 
     def message(self, level, text):
+        """
+        Log a message.
+        """
         # By default, we are silent
         pass
