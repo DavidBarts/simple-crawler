@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# A simple keyword analysis crawler, using crawler.py
+
+# I m p o r t s
+
+import os, sys
+from crawler import Crawler
+from parsewords import WordParser
+from kw import KW
+
+# V a r i a b l e s
+
+MYNAME = os.path.basename(sys.argv[0])
+
+# C l a s s e s
+
+class KWCrawler(Crawler):
+    def __init__(self, *args, **kwargs):
+        Crawler.__init__(self, *args, **kwargs)
+        self.kw = KW()
+        self.wp = WordParser()
+
+    def visit(self, url, raw, parsed):
+        for script in parsed.find_all("script"):
+            script.clear()
+        for style in parsed.find_all("style"):
+            style.clear()
+        self.kw.parse(self.wp.parse(parsed.get_text()))
+        self.message("info", "visited " + repr(url))
+
+    def message(self, level, text):
+        sys.stderr.write("{0}: {1} - {2}\n".format(MYNAME, level, text))
+
+# F u n c t i o n s
+
+def dumpkws(kws):
+    items = sorted(kws.items(),
+        key=lambda x: "{0:08x} {1}".format(-x[1]&0xffffffff, x[0]))
+    for i in items:
+        if i[1] <= 1:
+            break
+        print("{0}: {1}".format(*i))
+
+# M a i n   P r o g r a m
+
+crawler = KWCrawler(sys.argv[2:], domain=sys.argv[1])
+crawler.crawl()
+
+print()
+dumpkws(crawler.kw.single)
+print()
+dumpkws(crawler.kw.double)
+print()
+dumpkws(crawler.kw.triple)
