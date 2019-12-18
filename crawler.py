@@ -74,7 +74,12 @@ class Crawler(object):
                         "got {0} redirect without location for {1!r}".format(
                             response.status_code, url))
                     continue
-                location = urljoin(url, response.headers["location"])
+                try:
+                    location = urljoin(url, response.headers["location"])
+                except:
+                    self.message("warning", "exception joining {0!r} and {1!r}:\n{2}".format(
+                        url, response.headers["location"], traceback.format_exc()))
+                    continue
                 self.message("info", "got {0} redirect to {1!r}".format(
                     response.status_code, location))
                 self.enqueue(location)
@@ -113,6 +118,11 @@ class Crawler(object):
                         break
             # Enqueue all followable URL's found
             if follow:
+                base_tag = parsed.find("base")
+                if base_tag:
+                    base = self._scalar(base_tag.get("href")) or url
+                else:
+                    base = url
                 for link in parsed.find_all("a"):
                     rel = self._scalar(link.get("rel"))
                     if rel is not None and rel.lower() == "nofollow":
@@ -120,7 +130,13 @@ class Crawler(object):
                     href = self._scalar(link.get("href"))
                     if href is not None:
                         self.message("info", "found link to " + repr(href))
-                        self.enqueue(urljoin(url, href))
+                        try:
+                            joined = urljoin(base, href)
+                        except:
+                            self.message("warning", "exception joining {0!r} and {1!r}:\n{2}".format(
+                                base, href, traceback.format_exc()))
+                            continue
+                        self.enqueue(joined)
             # Issue callback
             self.message("info", "issuing callback for " + repr(url))
             self.visit(url, raw, parsed)
@@ -137,7 +153,12 @@ class Crawler(object):
         already been done so.
         """
         # Parse the url
-        parsed = urlparse(url)
+        try:
+            parsed = urlparse(url)
+        except:
+            self.message("warning", "exception parsing URL {0!r}:\n{1}".format(
+                url, traceback.format_exc()))
+            return
         # Reject non-HTTP(s) URLs
         scheme = parsed.scheme
         if scheme is None:
@@ -155,7 +176,12 @@ class Crawler(object):
         # Canonicalize
         rcanon = list(parsed)
         rcanon[5] = ""  # Delete any URL fragment
-        canonical = urlunparse(rcanon)
+        try:
+            canonical = urlunparse(rcanon)
+        except:
+            self.message("warning", "exception unparsing URL:\n{0}".format(
+                traceback.format_exc()))
+            return
         # Reject things already enqueued for crawling
         if canonical in self.seen:
             return
