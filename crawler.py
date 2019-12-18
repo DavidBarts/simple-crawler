@@ -20,6 +20,8 @@ class Crawler(object):
         self.delay = delay
         self.seen = set()
         self.queue = []
+        if domain is not None:
+            domain = domain.lower()
         self.domain = domain
         self.page_limit = page_limit
         self.time_limit = time_limit
@@ -145,7 +147,7 @@ class Crawler(object):
             return
         # Reject domains outside our scope, if requested
         if self.domain is not None:
-            host = parsed.hostname
+            host = parsed.hostname.lower()
             if host is None:
                 return
             if not(host == self.domain or host.endswith('.' + self.domain)):
