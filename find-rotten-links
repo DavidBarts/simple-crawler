@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# A null crawler, for testing crawler.py
+
+# I m p o r t s
+
+import os, sys
+from crawler import Crawler
+import requests
+import traceback
+import urllib.parse
+
+# V a r i a b l e s
+
+MYNAME = os.path.basename(sys.argv[0])
+
+cache = {}
+
+# C l a s s e s
+
+class NullCrawler(Crawler):
+    def visit(self, url, raw, parsed):
+        # Dump this page
+        print("PAGE {0!r}".format(url))
+        # Check & dump links on page
+        for link in parsed.find_all("a"):
+            href = self._scalar(link.get("href"))
+            if href is None:
+                continue
+            try:
+                parsed = urllib.parse.urlparse(href)
+            except:
+                self.message("warning", "exception parsing URL {0!r}:\n{1}".format(
+                    href, traceback.format_exc()))
+                continue
+            if self.is_local(parsed):
+                print("{0:03d} {1!r}".format(0, href))
+                continue
+            status = self.geturl(href, parsed)
+            print("{0:03d} {1!r}".format(status, href))
+
+    def is_local(self, parsed):
+        if parsed.hostname is None:
+            return True
+        host = parsed.hostname.lower()
+        return host == self.domain or host.endswith('.' + self.domain)
+
+    def geturl(self, raw, parsed):
+        global cache
+        rcanon = list(parsed)
+        rcanon[5] = ""  # Delete any URL fragment
+        if rcanon[1] is not None:
+            rcanon[1] = rcanon[1].lower()  # Hostnames are case-insensitive
+        try:
+            canonical = urllib.parse.urlunparse(rcanon)
+        except:
+            self.message("warning", "exception unparsing URL:\n{0}".format(
+                traceback.format_exc()))
+            return 999
+        if canonical not in cache:
+            self.message("info", "requesting " + repr(raw))
+            try:
+                cache[canonical] = requests.get(raw, allow_redirects=False).status_code
+            except:
+                self.message("warning", "exception requesting page:\n{0}".format(
+                    traceback.format_exc()))
+                cache[canonical] = 999
+        return cache[canonical]
+
+    def message(self, level, text):
+        sys.stderr.write("{0}: {1} - {2}\n".format(MYNAME, level, text))
+
+# M a i n   P r o g r a m
+
+crawler = NullCrawler(sys.argv[2:], domain=sys.argv[1])
+crawler.crawl()
